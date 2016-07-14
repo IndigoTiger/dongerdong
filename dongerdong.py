@@ -326,7 +326,8 @@ class Donger(BaseClient):
                         if c == 4:
                             break
                     try:
-                        self.message(target, "Full stats at {}".format(config['stats-url']))
+                        if config['stats-url'] != "" or config['stats-url'] != " ":
+                            self.message(target, "Full stats at {}".format(config['stats-url']))
                     except:
                         pass
                 elif command == "version" and not self.gameRunning:
@@ -375,7 +376,7 @@ class Donger(BaseClient):
                     self.message(self.channel, "\002{0}{1}\002 JOINS THE FIGHT (\002{2}\002HP)".format(source.upper(), zombye, health))
                     self.set_mode(self.channel, "+v", source)
                 elif command == "aijoin" and self.gameRunning and not self.deathmatch:
-                    if self.users[source]['account'] in self.admins:
+                    if self.users[source]['account'] in self.admins and config['nick'] not in self.turnlist:
                         self.dongJoin()
 
             #Rate limiting
@@ -619,12 +620,12 @@ class Donger(BaseClient):
         self.message(self.channel, "I'M HERE BITCHES")
         alivePlayers = [self.players[player]['hp'] for player in self.players if self.players[player]['hp'] > 0]
         health = int(sum(alivePlayers) / len(alivePlayers))
-        self.countStat(self.config['nick'], "joins")
-        self.turnlist.append(self.config['nick'])
+        self.countStat(config['nick'], "joins")
+        self.turnlist.append(config['nick'])
         random.shuffle(self.turnlist)
-        self.players[self.config['nick'].lower()] = {'hp': health, 'heals': 4, 'zombie': zombie, 'nick': self.config['nick'], 'praised': False}
-        self.set_mode(self.channel, "+v", self.config['nick'])
-        self.message(self.channel, "\002{0}\002 JOINS THE FIGHT (\002{1}\002HP)".format(self.config['nick'].upper(), health))
+        self.players[config['nick'].lower()] = {'hp': health, 'heals': 4, 'zombie': zombie, 'nick': config['nick'], 'praised': False}
+        self.set_mode(self.channel, "+v", config['nick'])
+        self.message(self.channel, "\002{0}\002 JOINS THE FIGHT (\002{1}\002HP)".format(config['nick'].upper(), health))
     
     def getTurn(self):
         # Step 1: Check for alive players.
@@ -646,7 +647,7 @@ class Donger(BaseClient):
             self.currentTurn = 0
 
         try:
-            if self.config['nick'] not in self.turnlist and not self.versusone and not self.deatharena: # evil dong joining :D
+            if config['nick'] not in self.turnlist and not self.versusone and not self.deatharena: # evil dong joining :D
                 if random.randint(1, 10) == 5: # >:D
                     self.dongJoin()
         except:
@@ -655,7 +656,7 @@ class Donger(BaseClient):
         if self.players[self.turnlist[self.currentTurn].lower()]['hp'] > 0: # it's alive!
             self.turnStart = time.time()
             self.message(self.channel, "It's \002{0}\002's turn.".format(self.turnlist[self.currentTurn]))
-            if self.turnlist[self.currentTurn] == self.config['nick']:
+            if self.turnlist[self.currentTurn] == config['nick']:
                 self.processAI()
         else: # It's dead, try again.
             self.getTurn()
