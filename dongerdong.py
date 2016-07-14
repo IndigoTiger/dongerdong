@@ -188,7 +188,7 @@ class Donger(BaseClient):
                     self.heal(source)
                 elif command == "ascii" and not self.gameRunning:
                     if args and len(' '.join(args)) < 16 and "".join(args) != "":
-                        self.message(target, self.ascii(' '.join(args)))
+                        self.ascii(' '.join(args))
                     else:
                         self.message(target, "Text must be 15 characters or less (that was {0} characters). Syntax: !ascii Fuck You".format(len(' '.join(args))))
                 elif command == "praise" and self.gameRunning:
@@ -223,8 +223,7 @@ class Donger(BaseClient):
                         self.message(target, "Are you fucking kidding, damn zombie?")
                         praiseroll = 2
                         ptarget = self.players[source.lower()]['nick']
-                    
-                    if ptarget.lower() == config['nick'].lower():
+                    elif ptarget.lower() == config['nick'].lower():
                         self.message(target, "You try and suckle my donger while fighting me?")
                         praiseroll = 2
                         ptarget = self.players[source.lower()]['nick']
@@ -271,9 +270,13 @@ class Donger(BaseClient):
                 elif command == "quit" and self.gameRunning:
                     self.cowardQuit(source)
                 elif command == "die" and not self.gameRunning:
-                    if source.lower() in self.admins:
+                    if self.users[source]['account'] in self.admins:
                         self.message(self.channel, importlib.import_module('extcmd.excuse').doit())
                         self.quit(importlib.import_module('extcmd.excuse').doit().upper())
+                elif command == "flush" and not self.gameRunning:
+                    if self.users[source]['account'] in self.admins:
+                        self.pendingFights = {}
+                        self.message(target, "Pending games flushed.")
                 elif command == "stats" and not self.gameRunning:
                     if args:
                         nick = args[0]
@@ -305,6 +308,8 @@ class Donger(BaseClient):
                     for player in players:
                         if (player.fights + player.accepts + player.joins) < 5:
                             continue
+                        if player.nick == config['nick']:
+                            continue
                         try:
                             p[player.nick] = round((player.wins - player.losses) + (player.fights * config['topmodifier']))
                         except KeyError:
@@ -313,7 +318,6 @@ class Donger(BaseClient):
                     if not p:
                         return self.message(target, "No top dongers.")
                     p = sorted(p.items(), key=operator.itemgetter(1))
-                    self.message(target, "Top dongers:")
                     c = 1
                     for player in p[::-1]:
                         balance = ("+" if player[1] > 0 else "") + str(player[1])
@@ -321,6 +325,18 @@ class Donger(BaseClient):
                         c += 1
                         if c == 4:
                             break
+                    try:
+                        self.message(target, "Full stats at {}".format(config['stats-url']))
+                    except:
+                        pass
+                elif command == "version" and not self.gameRunning:
+                    try:
+                        ver = subprocess.check_output(["git", "describe"]).decode().strip()
+                        self.message(target, "I am running dongerdong {0}.".format(ver))
+                    except:
+                        self.message(target, "I have no idea.")
+                elif command == "repo" and not self.gameRunning:
+                    self.message(target, "Check out my nudes at https://github.com/tonyravioli/dongerdong")
             elif target == config['nick']: # private message
                 if command == "join" and self.gameRunning and not self.deathmatch:
                     try:
@@ -358,6 +374,9 @@ class Donger(BaseClient):
                     self.players[source.lower()] = {'hp': health, 'heals': 4, 'zombie': zombie, 'nick': source, 'praised': False}
                     self.message(self.channel, "\002{0}{1}\002 JOINS THE FIGHT (\002{2}\002HP)".format(source.upper(), zombye, health))
                     self.set_mode(self.channel, "+v", source)
+                elif command == "aijoin" and self.gameRunning and not self.deathmatch:
+                    if self.users[source]['account'] in self.admins:
+                        self.dongJoin()
 
             #Rate limiting
             try:
@@ -426,7 +445,9 @@ class Donger(BaseClient):
                 self.players = {}
                 self.turnlist = []
                 self.currentTurn = -1
-                self.set_mode(self.channel, "-" + "v"*len(self.turnlist), *self.turnlist)
+                chunky = self.chunks(self.turnlist, 4)
+                for chunk in chunky:
+                    self.set_mode(channel, "-" + "v"*len(chunk), *chunk)
                 self.message(channel, "Game stopped!")
             else:
                 try:
@@ -485,7 +506,7 @@ class Donger(BaseClient):
             self.message(self.channel, "You can't heal.")
             return
         
-        healing = random.randint(22, 44 - (5-self.players[target.lower()]['heals'])*4)
+        healing = random.randint(22, 50 - (5-self.players[target.lower()]['heals'])*4)
         
         if critical: # If critical heal, override upper healing limit (re roll)
             healing = random.randint(44, 88) # (regular healing*2)
@@ -515,12 +536,12 @@ class Donger(BaseClient):
             self.getTurn()
             return
         if critroll == 1:
-            damage *= random.randint(2, 5)
+            damage *= random.randint(2, 4)
             if not critical: # if it isn't an artificial crit, shout
                 self.ascii("CRITICAL")
         
         self.players[source.lower()]['heals'] = 5
-        self.players[target.lower()]['hp'] -= damage
+        self.players[target.lower()]['hp'] = int(str((self.players[target.lower()]['hp'] - damage)).split(",")[0]) # :D
 
         self.message(self.channel, "\002{0}\002 (\002{1}\002HP) deals \002{2}\002 damage to \002{3}\002 (\002{4}\002HP)".format(
                     source, self.players[source.lower()]['hp'], damage, target, self.players[target.lower()]['hp']))
@@ -536,8 +557,9 @@ class Donger(BaseClient):
         self.set_mode(self.channel, "-v", victim)
         self.ascii("REKT")
         self.message(self.channel, "\002{0}\002 REKT {1}".format(slayer, victim))
-        
-        self.countStat(victim, "losses")
+
+        if slayer != config['nick']:
+            self.countStat(victim, "losses")
         self.countStat(slayer, "kills")
         
         if self.deathmatch or self.deatharena:
@@ -592,6 +614,17 @@ class Donger(BaseClient):
         
         # Get the first turn!
         self.getTurn()
+
+    def dongJoin(self):
+        self.message(self.channel, "I'M HERE BITCHES")
+        alivePlayers = [self.players[player]['hp'] for player in self.players if self.players[player]['hp'] > 0]
+        health = int(sum(alivePlayers) / len(alivePlayers))
+        self.countStat(self.config['nick'], "joins")
+        self.turnlist.append(self.config['nick'])
+        random.shuffle(self.turnlist)
+        self.players[self.config['nick'].lower()] = {'hp': health, 'heals': 4, 'zombie': zombie, 'nick': self.config['nick'], 'praised': False}
+        self.set_mode(self.channel, "+v", self.config['nick'])
+        self.message(self.channel, "\002{0}\002 JOINS THE FIGHT (\002{1}\002HP)".format(self.config['nick'].upper(), health))
     
     def getTurn(self):
         # Step 1: Check for alive players.
@@ -611,11 +644,18 @@ class Donger(BaseClient):
         # Check if that player exists.
         if len(self.turnlist) <= self.currentTurn:
             self.currentTurn = 0
+
+        try:
+            if self.config['nick'] not in self.turnlist and not self.versusone and not self.deatharena: # evil dong joining :D
+                if random.randint(1, 10) == 5: # >:D
+                    self.dongJoin()
+        except:
+            pass
         
         if self.players[self.turnlist[self.currentTurn].lower()]['hp'] > 0: # it's alive!
             self.turnStart = time.time()
             self.message(self.channel, "It's \002{0}\002's turn.".format(self.turnlist[self.currentTurn]))
-            if self.turnlist[self.currentTurn] == config['nick']:
+            if self.turnlist[self.currentTurn] == self.config['nick']:
                 self.processAI()
         else: # It's dead, try again.
             self.getTurn()
