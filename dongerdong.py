@@ -273,6 +273,10 @@ class Donger(BaseClient):
                     if self.users[source]['account'] in self.admins:
                         self.message(self.channel, importlib.import_module('extcmd.excuse').doit())
                         self.quit(importlib.import_module('extcmd.excuse').doit().upper())
+                    else:
+                        if random.randint(0, 5) == 3:
+                            self.message(target, "NO YOU")
+                            self.kick(target, source, "YOU DONT FUCKING GET TO TELL ME TO DIE")
                 elif command == "flush" and not self.gameRunning:
                     if self.users[source]['account'] in self.admins:
                         self.pendingFights = {}
