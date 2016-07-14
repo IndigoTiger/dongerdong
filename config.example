@@ -7,8 +7,8 @@
     "nsuser": "dong",
     "nspass": "yourpasswd",
     "auxchans": [],
-    "extcmds": ["jaden","excuse","dong"],
-    "admins": ["ravioli", "Polsaker", "IndigoTiger", "JeDa"],
+    "extcmds": ["jaden", "excuse", "dong"],
+    "admins": ["ravioli", "polsaker", "indigotiger", "jeda"],
     "topmodifier": 0.05, 
     "stats-url": "" 
 }

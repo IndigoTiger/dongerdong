@@ -371,7 +371,6 @@ class Donger(BaseClient):
                     self.countStat(source, "joins")
                     if not zombie:
                         self.turnlist.append(source)
-                        random.shuffle(self.turnlist)
                     self.players[source.lower()] = {'hp': health, 'heals': 4, 'zombie': zombie, 'nick': source, 'praised': False}
                     self.message(self.channel, "\002{0}{1}\002 JOINS THE FIGHT (\002{2}\002HP)".format(source.upper(), zombye, health))
                     self.set_mode(self.channel, "+v", source)
@@ -622,7 +621,6 @@ class Donger(BaseClient):
         health = int(sum(alivePlayers) / len(alivePlayers))
         self.countStat(config['nick'], "joins")
         self.turnlist.append(config['nick'])
-        random.shuffle(self.turnlist)
         self.players[config['nick'].lower()] = {'hp': health, 'heals': 4, 'zombie': zombie, 'nick': config['nick'], 'praised': False}
         self.set_mode(self.channel, "+v", config['nick'])
         self.message(self.channel, "\002{0}\002 JOINS THE FIGHT (\002{1}\002HP)".format(config['nick'].upper(), health))
