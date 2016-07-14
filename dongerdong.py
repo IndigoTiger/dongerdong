@@ -76,6 +76,9 @@ class Donger(BaseClient):
                 self.message(target, "No, {0}{1}".format(source, message.replace(config['nick'], '')))
             else:
                 self.message(target, message.replace(config['nick'], source))
+
+            if args[1].lower().startswith("fuck"):
+                self.action(target, "fucks {0}".format(source))
             
         if message.startswith("!"):
             command = message[1:].split(" ")[0].lower()
@@ -97,7 +100,7 @@ class Donger(BaseClient):
                         self.message(target, "Are you trying to fight yourself, bitch?")
                         return
 
-                    if command == "deatharena" and len(args) == 1:
+                    if command == "deatharena" and len(args) < 1:
                         self.message(target, "Deatharenas are for 3 players and upper. Use !deathmatch, for fuck sake.")
                         return
                        
@@ -171,7 +174,7 @@ class Donger(BaseClient):
                             return
                         
                         hitme = random.randint(1, 9001)
-                        if hitme > 8000:
+                        if hitme > 8001:
                             self.ascii("WHOOPS")
                             self.hit(source, source)
                             return
@@ -201,7 +204,7 @@ class Donger(BaseClient):
                         return
 
                     if self.deatharena:
-                        self.message(target, "You can't praise during deatharenas.")
+                        self.message(target, "You can't praise in deatharenas.")
                         return
                     
                     if self.players[source.lower()]['praised']:
@@ -275,7 +278,7 @@ class Donger(BaseClient):
                         self.quit(importlib.import_module('extcmd.excuse').doit().upper())
                     else:
                         if random.randint(0, 5) == 3:
-                            self.message(target, "NO YOU")
+                            self.message(target, "NO U")
                             self.kick(target, source, "YOU DONT FUCKING GET TO TELL ME TO DIE")
                 elif command == "flush" and not self.gameRunning:
                     if self.users[source]['account'] in self.admins:
@@ -531,7 +534,7 @@ class Donger(BaseClient):
         instaroll = random.randint(1, 50) if not self.versusone else 666
         critroll = random.randint(1, 12) if not critical else 1
         
-        damage = random.randint(18, 35)
+        damage = random.randint(18, 40)
         
         if instaroll == 1:
             self.ascii("INSTAKILL")
@@ -596,7 +599,7 @@ class Donger(BaseClient):
         self.message(self.channel, "Use !heal to heal yourself.")
         if not self.deathmatch:
             self.message(self.channel, "Use '/msg {0} !join' to join a game mid-fight.".format(config['nick']))
-        if not self.deathmatch or self.deatharena:
+        if not self.deathmatch or not self.deatharena:
             self.message(self.channel, "Use !praise [nick] to praise to the donger gods (once per game).")
 
         self.message(self.channel, " ")
@@ -621,11 +624,9 @@ class Donger(BaseClient):
 
     def dongJoin(self):
         self.message(self.channel, "I'M HERE BITCHES")
-        alivePlayers = [self.players[player]['hp'] for player in self.players if self.players[player]['hp'] > 0]
-        health = int(sum(alivePlayers) / len(alivePlayers))
-        self.countStat(config['nick'], "joins")
+        self.players[config['nick'].lower()] = {'hp': 100, 'heals': 4, 'zombie': False, 'nick': config['nick'], 'praised': False}
         self.turnlist.append(config['nick'])
-        self.players[config['nick'].lower()] = {'hp': health, 'heals': 4, 'zombie': zombie, 'nick': config['nick'], 'praised': False}
+        self.countStat(config['nick'], "joins")
         self.set_mode(self.channel, "+v", config['nick'])
         self.message(self.channel, "\002{0}\002 JOINS THE FIGHT (\002{1}\002HP)".format(config['nick'].upper(), health))
     
@@ -648,12 +649,9 @@ class Donger(BaseClient):
         if len(self.turnlist) <= self.currentTurn:
             self.currentTurn = 0
 
-        try:
-            if config['nick'] not in self.turnlist and not self.versusone and not self.deatharena: # evil dong joining :D
-                if random.randint(1, 10) == 5: # >:D
-                    self.dongJoin()
-        except:
-            pass
+        if config['nick'] not in self.turnlist and not self.versusone and not self.deatharena: # evil dong joining :D
+            if random.randint(1, 10) == 5: # >:D
+                self.dongJoin()
         
         if self.players[self.turnlist[self.currentTurn].lower()]['hp'] > 0: # it's alive!
             self.turnStart = time.time()
@@ -755,7 +753,7 @@ class Donger(BaseClient):
                 continue
                 
             accounts.append(self.users[player]['account']) # This is kinda to prevent clones playing
-        
+
         if len(players) <= 1:
             self.message(self.channel, "You need more than one person to fight!")
             return
@@ -775,15 +773,25 @@ class Donger(BaseClient):
         
         if config['nick'] in players:
             if versusone or deatharena:
-                return self.message(self.channel, "{0} is not available for duels, deathmatches or deatharenas.".format(config['nick']))
-            self.message(self.channel, "YOU WILL SEE")
-            self.pendingFights[players[0].lower()]['pendingaccept'].remove(config['nick'].lower())
-            self.pendingFights[players[0].lower()]['players'].append(config['nick'])
+                self.message(self.channel, "{0} is not available for duels, deathmatches or deatharenas.".format(config['nick']))
+                self.pendingFights[players[0].lower()]['pendingaccept'].remove(config['nick'].lower())
+            else:
+                self.message(self.channel, "YOU WILL SEE")
+                self.pendingFights[players[0].lower()]['pendingaccept'].remove(config['nick'].lower())
+                self.pendingFights[players[0].lower()]['players'].append(config['nick'])
             if not self.pendingFights[players[0].lower()]['pendingaccept']:
                 # Start the game!
                 self.start(self.pendingFights[players[0].lower()])
                 return
             players.remove(config['nick'])
+
+        if len(self.pendingFights[players[0].lower()]) <= 1:
+            self.message(self.channel, "You need more than one person to fight!")
+            return
+
+        if deatharena and len(self.pendingFights[players[0].lower()]) <= 2:
+            self.message(self.channel, "You need 3 players or more to use the deatharena!")
+            return
             
         
         if deathmatch:
