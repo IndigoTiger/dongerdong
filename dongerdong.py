@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import os
-import traceback
 try:
     import pydle
     import json
@@ -18,7 +17,6 @@ try:
     from pyfiglet import Figlet
 except Exception as e: # oops!
     print("There has been an error when including modules. It means that you haven't installed one of those. Please check and try again.")
-    traceback.print_tb()
     os._exit(1)
 
 logging.basicConfig(level=logging.DEBUG)
@@ -245,10 +243,9 @@ class Donger(BaseClient):
                 elif command == "cancel" and not self.gameRunning:
                     try:
                         del self.pendingFights[source.lower()]
+                        self.message(target, "Fight cancelled.")
                     except KeyError:
                         self.message(target, "You can only !cancel if you started a fight.")
-                    except IndexError:
-                        self.message(target, "You can only !cancel if you started a fight (Index error).")
                 elif command == "reject" and not self.gameRunning:
                     if not args:
                         self.message(target, "Could you fucking read? It's !reject <nick>")
@@ -316,7 +313,7 @@ class Donger(BaseClient):
                     for player in players:
                         if (player.fights + player.accepts + player.joins) < 5:
                             continue
-                        if (player.nick == config['nick']):
+                        if player.nick == config['nick']:
                             continue
                         try:
                             p[player.nick] = round((player.wins - player.losses) + (player.fights * config['topmodifier']))
@@ -334,10 +331,10 @@ class Donger(BaseClient):
                         if c == 4:
                             break
                     try:
-                        self.message(target, "Full stats at {}".format(config['stats-url']))
+                        if config['stats-url'] != "" or config['stats-url'] != " ":
+                            self.message(target, "Full stats at {}".format(config['stats-url']))
                     except:
                         pass
-
                 elif command == "version" and not self.gameRunning:
                     try:
                         ver = subprocess.check_output(["git", "describe"]).decode().strip()
@@ -565,7 +562,7 @@ class Donger(BaseClient):
         self.set_mode(self.channel, "-v", victim)
         self.ascii("REKT")
         self.message(self.channel, "\002{0}\002 REKT {1}".format(slayer, victim))
-        
+
         if slayer != config['nick']:
             self.countStat(victim, "losses")
         self.countStat(slayer, "kills")
